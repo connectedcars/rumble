@@ -1,3 +1,4 @@
+#![allow(deprecated)]
 pub mod att;
 pub mod hci;
 
