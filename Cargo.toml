@@ -12,10 +12,11 @@ library, currently supporting Linux/Bluez
 """
 
 readme = "README.md"
-keywords = ["bluetooth", "BLE", "IOT", "bluez"]
+keywords = ["bluetooth", "BLE", "IOT", "bluez","bluenrg"]
 categories = ["network-programming", "hardware-support"]
 
 [dependencies]
+bluenrg = { git = "https://github.com/Daniel-Berton-STI-ltd/bluenrg" , rev = "bc019d47dd487b3efcb0560d88d6f92201ff1716" }
 backtrace = "0.3.50"
 bitflags = "1.2.1"
 bytes = "0.5.6"
@@ -26,6 +27,7 @@ libc = "0.2.74"
 log = "0.4.11"
 nix = "0.18.0"
 num = "0.3.0"
+nb = "1.0.0"
 
 
 [dependencies.nom]

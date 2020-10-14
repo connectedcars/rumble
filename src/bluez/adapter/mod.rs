@@ -1,6 +1,9 @@
 mod acl_stream;
 mod peripheral;
 
+extern crate bluenrg;
+extern crate nb;
+
 use bytes::{BufMut, BytesMut};
 use libc;
 use nom;
@@ -21,6 +24,14 @@ use bluez::constants::*;
 use bluez::ioctl;
 use bluez::protocol::hci;
 use bluez::util::handle_error;
+
+use std::thread::sleep;
+use std::time::Duration;
+
+use self::bluenrg::gap;
+use self::bluenrg::gap::Commands as GapCmd;
+use self::bluenrg::gatt::Commands as GattCmd;
+use self::bluenrg::BlueNRG;
 
 #[derive(Copy, Debug)]
 #[repr(C)]
@@ -388,7 +399,13 @@ impl ConnectedAdapter {
             }
         }
     }
+    fn write_from_hci(&self, header: &[u8], payload: &[u8]) -> nb::Result<(), bluenrg::Error> {
+        //debug!("hdr:{:x?}\ndata:{:x?}\n", header, payload);
+        let mut buf: Vec<u8> = [header, payload].concat();
 
+        self.write(&mut buf).unwrap();
+        Ok(())
+    }
     fn write(&self, message: &mut [u8]) -> Result<()> {
         debug!("writing({}) {:?}", self.adapter_fd, message);
         let ptr = message.as_mut_ptr();
@@ -403,32 +420,43 @@ impl ConnectedAdapter {
     }
 
     fn set_scan_params(&self) -> Result<()> {
-        let mut data = BytesMut::with_capacity(7);
-        data.put_u8(if self.active.load(Ordering::Relaxed) {
-            1
-        } else {
-            0
-        }); // scan_type = active or passive
-        data.put_u16_le(0x0010); // interval ms
-        data.put_u16_le(0x0010); // window ms
-        data.put_u8(0); // own_type = public
-        data.put_u8(0); // filter_policy = public
-        let mut buf = hci::hci_command(LE_SET_SCAN_PARAMETERS_CMD, &*data);
-        self.write(&mut *buf)
+        let writer = |h: &_, p: &_| self.write_from_hci(h, p);
+        let mut buf: [u8; 257] = [0; 257];
+        let mut bnrg = BlueNRG::new(&mut buf);
+        bnrg.with_writer(&writer, |hci| -> () {
+            hci.init_gatt().unwrap();
+            sleep(Duration::from_millis(10));
+
+            hci.init_gap(gap::Role::CENTRAL, false, 0).unwrap();
+            sleep(Duration::from_millis(10));
+            //
+            let dpp = gap::DiscoveryProcedureParameters {
+                scan_window: gap::ScanWindow::start_every(Duration::from_millis(10000))
+                    .unwrap()
+                    .open_for(Duration::from_millis(10000))
+                    .unwrap(),
+                own_address_type: gap::OwnAddressType::Public,
+                filter_duplicates: false,
+            };
+            hci.start_general_discovery_procedure(&dpp).unwrap();
+            sleep(Duration::from_millis(10));
+        });
+        Ok(())
     }
 
     fn set_scan_enabled(&self, enabled: bool) -> Result<()> {
-        let mut data = BytesMut::with_capacity(2);
-        data.put_u8(if enabled { 1 } else { 0 }); // enabled
-        data.put_u8(if self.filter_duplicates.load(Ordering::Relaxed) {
-            1
-        } else {
-            0
-        }); // filter duplicates
+        if !enabled {
+            let writer = |h: &_, p: &_| self.write_from_hci(h, p);
+            let mut buf: [u8; 257] = [0; 257];
+            let mut bnrg = BlueNRG::new(&mut buf);
+            bnrg.with_writer(&writer, |hci| -> () {
+                hci.terminate_procedure(gap::Procedure::GENERAL_DISCOVERY)
+                    .unwrap();
+            });
+        }
 
         self.scan_enabled.clone().store(enabled, Ordering::Relaxed);
-        let mut buf = hci::hci_command(LE_SET_SCAN_ENABLE_CMD, &*data);
-        self.write(&mut *buf)
+        Ok(())
     }
 }
 
@@ -449,8 +477,8 @@ impl Central<Peripheral> for ConnectedAdapter {
     }
 
     fn start_scan(&self) -> Result<()> {
-        self.set_scan_params()?;
-        self.set_scan_enabled(true)
+        self.set_scan_params()
+        //self.set_scan_enabled(true)
     }
 
     fn stop_scan(&self) -> Result<()> {
