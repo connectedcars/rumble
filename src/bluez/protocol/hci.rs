@@ -1,108 +1,136 @@
-use nom::{le_u8, le_u16, le_u32, le_u64, le_i8, IResult, Err, ErrorKind};
+use bytes::{BufMut, BytesMut};
+use nom::{le_i8, le_u16, le_u32, le_u64, le_u8, Err, ErrorKind, IResult};
 use num::FromPrimitive;
-use bytes::{BytesMut, BufMut};
 
-
-use ::api::{BDAddr, AddressType};
+use api::{AddressType, BDAddr};
 use bluez::constants::*;
 use bluez::protocol::*;
 
-
 #[cfg(test)]
 mod tests {
-    use ::api::BDAddr;
-    use super::*;
-    use super::LEAdvertisingData::*;
     use super::HCIStatus;
+    use super::LEAdvertisingData::*;
+    use super::*;
+    use api::BDAddr;
 
     #[test]
     fn test_decode_device_discovery() {
-        let buf = [4,62,40,2,1,4,0,192,74,150,234,218,116,28,18,9,76,69,68,66,
-            108,117,101,45,69,65,57,54,52,65,67,48,32,5,18,16,0,20,0,2,10,4,190];
+        let buf = [
+            4, 62, 40, 2, 1, 4, 0, 192, 74, 150, 234, 218, 116, 28, 18, 9, 76, 69, 68, 66, 108,
+            117, 101, 45, 69, 65, 57, 54, 52, 65, 67, 48, 32, 5, 18, 16, 0, 20, 0, 2, 10, 4, 190,
+        ];
 
-        let expected = Message::LEAdvertisingReport(
-            LEAdvertisingInfo {
-                evt_type: 4,
-                bdaddr_type: 0,
-                bdaddr: BDAddr {
-                    address: [192, 74, 150, 234, 218, 116],
-                },
-                data: vec![
-                    LocalName(String::from("LEDBlue-EA964AC0 ")),
-                    SlaveConnectionIntervalRange(16, 20),
-                    TxPowerLevel(4),
-                ]
-            }
-        );
+        let expected = Message::LEAdvertisingReport(LEAdvertisingInfo {
+            evt_type: 4,
+            bdaddr_type: 0,
+            bdaddr: BDAddr {
+                address: [192, 74, 150, 234, 218, 116],
+            },
+            data: vec![
+                LocalName(String::from("LEDBlue-EA964AC0 ")),
+                SlaveConnectionIntervalRange(16, 20),
+                TxPowerLevel(4),
+            ],
+        });
 
         assert_eq!(message(&buf), Ok((&[][..], expected)));
     }
 
     #[test]
     fn test_decode_device_discovery2() {
-        let buf = [4, 62, 23, 2, 1, 0, 0, 192, 74, 150, 234, 218, 116, 11, 2,
-            1, 6, 7, 2, 240, 255, 229, 255, 224, 255, 194];
+        let buf = [
+            4, 62, 23, 2, 1, 0, 0, 192, 74, 150, 234, 218, 116, 11, 2, 1, 6, 7, 2, 240, 255, 229,
+            255, 224, 255, 194,
+        ];
 
-        let expected = Message::LEAdvertisingReport(
-            LEAdvertisingInfo {
-                evt_type: 0,
-                bdaddr_type: 0,
-                bdaddr: BDAddr {
-                    address: [192, 74, 150, 234, 218, 116],
-                },
-                data: vec![
-                    Flags(AdvertisingFlags::BR_EDR_NOT_SUPPORTED |
-                        AdvertisingFlags::LE_GENERAL_DISCOVERABLE_MODE),
-                    ServiceClassUUID16(0xFFF0),
-                    ServiceClassUUID16(0xFFE5),
-                    ServiceClassUUID16(0xFFE0),
-                ]
-            }
-        );
+        let expected = Message::LEAdvertisingReport(LEAdvertisingInfo {
+            evt_type: 0,
+            bdaddr_type: 0,
+            bdaddr: BDAddr {
+                address: [192, 74, 150, 234, 218, 116],
+            },
+            data: vec![
+                Flags(
+                    AdvertisingFlags::BR_EDR_NOT_SUPPORTED
+                        | AdvertisingFlags::LE_GENERAL_DISCOVERABLE_MODE,
+                ),
+                ServiceClassUUID16(0xFFF0),
+                ServiceClassUUID16(0xFFE5),
+                ServiceClassUUID16(0xFFE0),
+            ],
+        });
 
         assert_eq!(message(&buf), Ok((&[][..], expected)));
     }
 
     #[test]
     fn test_bd_addr() {
-        let buf = [192u8,74,150,234,218,116];
-        assert_eq!(bd_addr(&buf), Ok((&[][..],BDAddr {
-            address: [192, 74, 150, 234, 218, 116]})))
+        let buf = [192u8, 74, 150, 234, 218, 116];
+        assert_eq!(
+            bd_addr(&buf),
+            Ok((
+                &[][..],
+                BDAddr {
+                    address: [192, 74, 150, 234, 218, 116]
+                }
+            ))
+        )
     }
 
     #[test]
     fn test_le_advertising_info() {
-        let buf = [1,4,0,192,74,150,234,218,116,11,2,1,6,7,2,240,255,229,255,224,255];
+        let buf = [
+            1, 4, 0, 192, 74, 150, 234, 218, 116, 11, 2, 1, 6, 7, 2, 240, 255, 229, 255, 224, 255,
+        ];
 
-        assert_eq!(le_advertising_info(&buf), Ok((&[][..], LEAdvertisingInfo {
-            evt_type: 4,
-            bdaddr_type: 0,
-            bdaddr: BDAddr {
-                address: [192,74,150,234,218,116],
-            },
-            data: vec![
-                Flags(AdvertisingFlags::BR_EDR_NOT_SUPPORTED |
-                    AdvertisingFlags::LE_GENERAL_DISCOVERABLE_MODE),
-                ServiceClassUUID16(65520),
-                ServiceClassUUID16(65509),
-                ServiceClassUUID16(65504)],
-        })));
+        assert_eq!(
+            le_advertising_info(&buf),
+            Ok((
+                &[][..],
+                LEAdvertisingInfo {
+                    evt_type: 4,
+                    bdaddr_type: 0,
+                    bdaddr: BDAddr {
+                        address: [192, 74, 150, 234, 218, 116],
+                    },
+                    data: vec![
+                        Flags(
+                            AdvertisingFlags::BR_EDR_NOT_SUPPORTED
+                                | AdvertisingFlags::LE_GENERAL_DISCOVERABLE_MODE
+                        ),
+                        ServiceClassUUID16(65520),
+                        ServiceClassUUID16(65509),
+                        ServiceClassUUID16(65504)
+                    ],
+                }
+            ))
+        );
     }
 
     #[test]
     fn test_le_advertising_data() {
         let buf = [7, 2, 240, 255, 229, 255, 224, 255];
 
-        assert_eq!(le_advertising_data(&buf), Ok((&[][..],
-                                                            vec![ServiceClassUUID16(65520),
-                                                                 ServiceClassUUID16(65509),
-                                                                 ServiceClassUUID16(65504)])));
+        assert_eq!(
+            le_advertising_data(&buf),
+            Ok((
+                &[][..],
+                vec![
+                    ServiceClassUUID16(65520),
+                    ServiceClassUUID16(65509),
+                    ServiceClassUUID16(65504)
+                ]
+            ))
+        );
 
-        let buf = [18,9,76,69,68,66,108,117,101,45,69,65,57,55,66,55,65,51,32];
-        assert_eq!(le_advertising_data(&buf), Ok((&[][..], vec![
-            LocalName(String::from("LEDBlue-EA97B7A3 "))])));
+        let buf = [
+            18, 9, 76, 69, 68, 66, 108, 117, 101, 45, 69, 65, 57, 55, 66, 55, 65, 51, 32,
+        ];
+        assert_eq!(
+            le_advertising_data(&buf),
+            Ok((&[][..], vec![LocalName(String::from("LEDBlue-EA97B7A3 "))]))
+        );
     }
-
 
     #[test]
     fn test_broken_le_advertising_data() {
@@ -121,40 +149,49 @@ mod tests {
     #[test]
     fn test_acl_data_packet() {
         let buf = [2, 64, 32, 9, 0, 5, 0, 4, 0, 1, 16, 1, 0, 16];
-        assert_eq!(message(&buf), Ok((
-            &[][..],
-            Message::ACLDataPacket(ACLData {
-                handle: 64,
-                cid: 4,
-                data: vec![1, 16, 1, 0, 16],
-                len: 5,
-            }),
-        )))
+        assert_eq!(
+            message(&buf),
+            Ok((
+                &[][..],
+                Message::ACLDataPacket(ACLData {
+                    handle: 64,
+                    cid: 4,
+                    data: vec![1, 16, 1, 0, 16],
+                    len: 5,
+                }),
+            ))
+        )
     }
 
     #[test]
     fn test_cmd_status() {
         let buf = [4, 15, 4, 0, 1, 22, 32];
-        assert_eq!(message(&buf), Ok((
-            &[][..],
-            Message::CommandStatus {
-                command: CommandType::LEReadRemoteUsedFeatures,
-                status: HCIStatus::Success,
-            }
-        )));
+        assert_eq!(
+            message(&buf),
+            Ok((
+                &[][..],
+                Message::CommandStatus {
+                    command: CommandType::LEReadRemoteUsedFeatures,
+                    status: HCIStatus::Success,
+                }
+            ))
+        );
     }
 
     #[test]
     fn test_recv_le_meta() {
         let buf = [4, 62, 12, 4, 0, 64, 0, 1, 0, 0, 0, 0, 0, 0, 0];
-        assert_eq!(message(&buf), Ok((
-            &[][..],
-            Message::LEReadRemoteUsedFeaturesComplete {
-                status: HCIStatus::Success,
-                handle: 64,
-                flags: LEFeatureFlags::LE_ENCRYPTION,
-            }
-        )))
+        assert_eq!(
+            message(&buf),
+            Ok((
+                &[][..],
+                Message::LEReadRemoteUsedFeaturesComplete {
+                    status: HCIStatus::Success,
+                    handle: 64,
+                    flags: LEFeatureFlags::LE_ENCRYPTION,
+                }
+            ))
+        )
     }
 }
 
@@ -220,7 +257,7 @@ pub enum Message {
     ACLDataContinuation {
         handle: u16,
         data: Vec<u8>,
-    }
+    },
 }
 
 bitflags! {
@@ -258,7 +295,7 @@ pub struct LEAdvertisingInfo {
     pub evt_type: u8,
     pub bdaddr_type: u8,
     pub bdaddr: BDAddr,
-    pub data: Vec<LEAdvertisingData>
+    pub data: Vec<LEAdvertisingData>,
 }
 
 #[derive(Debug, PartialEq)]
@@ -281,7 +318,6 @@ pub struct LEConnUpdateInfo {
     pub latency: u16,
     pub supervision_timeout: u16,
 }
-
 
 enum_from_primitive! {
 #[derive(Debug, PartialEq)]
@@ -412,16 +448,96 @@ pub enum CommandType {
     LESetScanResponseData = 0x2009,
     LEAddDeviceToWhiteList = 0x2011,
     LERemoveDeviceFromWhiteList = 0x2012,
-    LEReadRemoteUsedFeatures = 0x2016,
+    LEReadRemoteUsedFeatures = 0x2016,  
 
     Disconnect = 0x0406,
+    AciGapSetNonDiscoverable =ACI_GAP_SET_NON_DISCOVERABLE,
+    AciGapSetLimitedDiscoverable =ACI_GAP_SET_LIMITED_DISCOVERABLE ,
+    AciGapSetDiscoverable =ACI_GAP_SET_DISCOVERABLE ,
+    AciGapSetDirectConnectable =ACI_GAP_SET_DIRECT_CONNECTABLE ,
+    AciGapSetIoCapability =ACI_GAP_SET_IO_CAPABILITY ,
+    AciGapSetAuthRequirement =ACI_GAP_SET_AUTH_REQUIREMENT ,
+    AciGapSetAuthorRequirement =ACI_GAP_SET_AUTHOR_REQUIREMENT ,
+    AciGapPassKeyResponse =ACI_GAP_PASS_KEY_RESPONSE ,
+    AciGapAuthorizationResponse =ACI_GAP_AUTHORIZATION_RESPONSE ,
+    AciGapInit =ACI_GAP_INIT ,
+    AciGapSetNonConnectable =ACI_GAP_SET_NON_CONNECTABLE ,
+    AciGapSetUndirectedConnectable =ACI_GAP_SET_UNDIRECTED_CONNECTABLE ,
+    AciGapSlaveSecurityRequest =ACI_GAP_SLAVE_SECURITY_REQUEST ,
+    AciGapUpdateAdvData =ACI_GAP_UPDATE_ADV_DATA ,
+    AciGapDeleteAdType =ACI_GAP_DELETE_AD_TYPE ,
+    AciGapGetSecurityLevel =ACI_GAP_GET_SECURITY_LEVEL ,
+    AciGapSetEventMask =ACI_GAP_SET_EVENT_MASK ,
+    AciGapConfigureWhitelist =ACI_GAP_CONFIGURE_WHITELIST ,
+    AciGapTerminate =ACI_GAP_TERMINATE ,
+    AciGapClearSecurityDatabase =ACI_GAP_CLEAR_SECURITY_DATABASE ,
+    AciGapAllowRebond =ACI_GAP_ALLOW_REBOND ,
+    AciGapStartLimitedDiscoveryProc =ACI_GAP_START_LIMITED_DISCOVERY_PROC ,
+    AciGapStartGeneralDiscoveryProc =ACI_GAP_START_GENERAL_DISCOVERY_PROC ,
+    AciGapStartNameDiscoveryProc =ACI_GAP_START_NAME_DISCOVERY_PROC ,
+    AciGapStartAutoConnEstablishment =ACI_GAP_START_AUTO_CONN_ESTABLISHMENT ,
+    AciGapStartGeneralConnEstablishment =ACI_GAP_START_GENERAL_CONN_ESTABLISHMENT ,
+    AciGapStartSelectiveConnEstablishment =ACI_GAP_START_SELECTIVE_CONN_ESTABLISHMENT ,
+    AciGapCreateConnection =ACI_GAP_CREATE_CONNECTION ,
+    AciGapTerminateGapProcedure =ACI_GAP_TERMINATE_GAP_PROCEDURE ,
+    AciGapStartConnectionUpdate =ACI_GAP_START_CONNECTION_UPDATE ,
+    AciGapSendPairingRequest =ACI_GAP_SEND_PAIRING_REQUEST ,
+    AciGapResolvePrivateAddress =ACI_GAP_RESOLVE_PRIVATE_ADDRESS ,
+    AciGapGetBondedDevices =ACI_GAP_GET_BONDED_DEVICES ,
+
+    AciGattInit = ACI_GATT_INIT,
+    AciGattAddServ = ACI_GATT_ADD_SERV,
+    AciGattIncludeService = ACI_GATT_INCLUDE_SERVICE,
+    AciGattAddChar = ACI_GATT_ADD_CHAR,
+    AciGattAddCharDesc = ACI_GATT_ADD_CHAR_DESC,
+    AciGattUpdateCharValue = ACI_GATT_UPDATE_CHAR_VALUE,
+    AciGattDelChar = ACI_GATT_DEL_CHAR,
+    AciGattDelService = ACI_GATT_DEL_SERVICE,
+    AciGattDelIncludeService = ACI_GATT_DEL_INCLUDE_SERVICE,
+    AciGattSetEventMask = ACI_GATT_SET_EVENT_MASK,
+    AciGattExchangeConfiguration = ACI_GATT_EXCHANGE_CONFIGURATION,
+    AciAttFindInformationReq = ACI_ATT_FIND_INFORMATION_REQ,
+    AciAttFindByTypeValueReq = ACI_ATT_FIND_BY_TYPE_VALUE_REQ,
+    AciAttReadByTypeReq = ACI_ATT_READ_BY_TYPE_REQ,
+    AciAttReadByGroupTypeReq = ACI_ATT_READ_BY_GROUP_TYPE_REQ,
+    AciAttPrepareWriteReq = ACI_ATT_PREPARE_WRITE_REQ,
+    AciAttExecuteWriteReq = ACI_ATT_EXECUTE_WRITE_REQ,
+    AciGattDiscAllPrimServices = ACI_GATT_DISC_ALL_PRIM_SERVICES,
+    AciGattDiscPrimServiceByUuid = ACI_GATT_DISC_PRIM_SERVICE_BY_UUID,
+    AciGattFindIncludedServices = ACI_GATT_FIND_INCLUDED_SERVICES,
+    AciGattDiscAllCharacOfServ = ACI_GATT_DISC_ALL_CHARAC_OF_SERV,
+    AciGattDiscCharacByUuid = ACI_GATT_DISC_CHARAC_BY_UUID,
+    AciGattDiscAllCharacDescriptors = ACI_GATT_DISC_ALL_CHARAC_DESCRIPTORS,
+    AciGattReadCharacVal = ACI_GATT_READ_CHARAC_VAL,
+    AciGattReadCharacUsingUuid = ACI_GATT_READ_CHARAC_USING_UUID,
+    AciGattReadLongCharacVal = ACI_GATT_READ_LONG_CHARAC_VAL,
+    AciGattReadMultipleCharacVal = ACI_GATT_READ_MULTIPLE_CHARAC_VAL,
+    AciGattWriteCharacValue = ACI_GATT_WRITE_CHARAC_VALUE,
+    AciGattWriteLongCharacVal = ACI_GATT_WRITE_LONG_CHARAC_VAL,
+    AciGattWriteCharacReliable = ACI_GATT_WRITE_CHARAC_RELIABLE,
+    AciGattWriteLongCharacDesc = ACI_GATT_WRITE_LONG_CHARAC_DESC,
+    AciGattReadLongCharacDesc = ACI_GATT_READ_LONG_CHARAC_DESC,
+    AciGattWriteCharacDescriptor = ACI_GATT_WRITE_CHARAC_DESCRIPTOR,
+    AciGattReadCharacDesc = ACI_GATT_READ_CHARAC_DESC,
+    AciGattWriteWithoutResponse = ACI_GATT_WRITE_WITHOUT_RESPONSE,
+    AciGattSignedWriteWithoutResp = ACI_GATT_SIGNED_WRITE_WITHOUT_RESP,
+    AciGattConfirmIndication = ACI_GATT_CONFIRM_INDICATION,
+    AciGattWriteResponse = ACI_GATT_WRITE_RESPONSE,
+    AciGattAllowRead = ACI_GATT_ALLOW_READ,
+    AciGattSetSecurityPermission = ACI_GATT_SET_SECURITY_PERMISSION,
+    AciGattSetDescValue = ACI_GATT_SET_DESC_VALUE,
+    AciGattReadHandleValue = ACI_GATT_READ_HANDLE_VALUE,
+
 }}
 
 #[allow(dead_code)]
 #[derive(Debug, PartialEq)]
 pub enum CommandComplete {
     Reset,
-    ReadLEHostSupported { le: u8, simul: u8 },
+    ReadLEHostSupported {
+        le: u8,
+        simul: u8,
+    },
     ReadLocalVersion {
         hci_version: u8,
         hci_revision: u16,
@@ -439,13 +555,13 @@ pub enum CommandComplete {
     },
     ReadRSSI {
         handle: u16,
-        rssi: u8
+        rssi: u8,
     },
     Other {
         command: CommandType,
         status: u8,
-        data: Vec<u8>
-    }
+        data: Vec<u8>,
+    },
 }
 
 fn le_advertising_data(i: &[u8]) -> IResult<&[u8], Vec<LEAdvertisingData>> {
@@ -459,73 +575,79 @@ fn le_advertising_data(i: &[u8]) -> IResult<&[u8], Vec<LEAdvertisingData>> {
 
     let len = len as usize - 1;
     // let mut result = vec![];
-    let (i, result)= match typ {
-        0x1 => {
-            try_parse!(i, map!(le_u8, |u| vec![Flags(AdvertisingFlags::from_bits_truncate(u))]))
-        }
-        0x02|0x03 =>  {
-            try_parse!(i, count!(map!(le_u16, |u| ServiceClassUUID16(u)), len / 2))
-        }
-        0x06|0x07 => {
-            try_parse!(i, count!(map!(parse_uuid_128,
-                |b| ServiceClassUUID128(b)), len / 16))
-        }
-        0x08|0x09 => {
-            try_parse!(i, map!(take!(len),
-                |b| vec![LocalName(String::from_utf8_lossy(b).into_owned())]))
-        }
-        0x0A => {
-            try_parse!(i, map!(le_i8, |b| vec![TxPowerLevel(b)]))
-        }
-        0x12 => {
-            try_parse!(i, do_parse!(
-              min: le_u16 >>
-              max: le_u16 >>
-              (vec![SlaveConnectionIntervalRange(min, max)])
-            ))
-        }
-        0x14 => {
-            try_parse!(i, count!(map!(le_u16, |u| SolicitationUUID16(u)), len / 2))
-        }
-        0x15 => {
-            try_parse!(i, count!(map!(parse_uuid_128,
-                |b| SolicitationUUID128(b)), len / 16))
-        }
+    let (i, result) = match typ {
+        0x1 => try_parse!(
+            i,
+            map!(le_u8, |u| vec![Flags(
+                AdvertisingFlags::from_bits_truncate(u)
+            )])
+        ),
+        0x02 | 0x03 => try_parse!(i, count!(map!(le_u16, |u| ServiceClassUUID16(u)), len / 2)),
+        0x06 | 0x07 => try_parse!(
+            i,
+            count!(map!(parse_uuid_128, |b| ServiceClassUUID128(b)), len / 16)
+        ),
+        0x08 | 0x09 => try_parse!(
+            i,
+            map!(take!(len), |b| vec![LocalName(
+                String::from_utf8_lossy(b).into_owned()
+            )])
+        ),
+        0x0A => try_parse!(i, map!(le_i8, |b| vec![TxPowerLevel(b)])),
+        0x12 => try_parse!(
+            i,
+            do_parse!(min: le_u16 >> max: le_u16 >> (vec![SlaveConnectionIntervalRange(min, max)]))
+        ),
+        0x14 => try_parse!(i, count!(map!(le_u16, |u| SolicitationUUID16(u)), len / 2)),
+        0x15 => try_parse!(
+            i,
+            count!(map!(parse_uuid_128, |b| SolicitationUUID128(b)), len / 16)
+        ),
         0x16 => {
             if len < 2 {
                 return Err(Err::Error(error_position!(i, ErrorKind::Custom(4))));
             }
 
-            try_parse!(i, do_parse!(
-                uuid: le_u16 >>
-                data: count!(le_u8, len - 2) >>
-                (vec![ServiceData16(uuid, data)])))
+            try_parse!(
+                i,
+                do_parse!(
+                    uuid: le_u16
+                        >> data: count!(le_u8, len - 2)
+                        >> (vec![ServiceData16(uuid, data)])
+                )
+            )
         }
         0x20 => {
             if len < 4 {
                 return Err(Err::Error(error_position!(i, ErrorKind::Custom(4))));
             }
-            try_parse!(i, do_parse!(
-                uuid: le_u32 >>
-                data: count!(le_u8, len - 4) >>
-                (vec![ServiceData32(uuid, data)])))
+            try_parse!(
+                i,
+                do_parse!(
+                    uuid: le_u32
+                        >> data: count!(le_u8, len - 4)
+                        >> (vec![ServiceData32(uuid, data)])
+                )
+            )
         }
         0x21 => {
             if len < 16 {
                 return Err(Err::Error(error_position!(i, ErrorKind::Custom(4))));
             }
-            try_parse!(i, do_parse!(
-                uuid: parse_uuid_128 >>
-                data: count!(le_u8, len - 16) >>
-                (vec![ServiceData128(uuid, data)])))
+            try_parse!(
+                i,
+                do_parse!(
+                    uuid: parse_uuid_128
+                        >> data: count!(le_u8, len - 16)
+                        >> (vec![ServiceData128(uuid, data)])
+                )
+            )
         }
-        0x1F => {
-            try_parse!(i, count!(map!(le_u32,
-                |b| SolicitationUUID32(b)), len / 4))
-        }
-        0xFF => {
-            try_parse!(i, map!(count!(le_u8, len), |b| vec![ManufacturerSpecific(b)]))
-        }
+        0x1F => try_parse!(i, count!(map!(le_u32, |b| SolicitationUUID32(b)), len / 4)),
+        0xFF => try_parse!(
+            i,
+            map!(count!(le_u8, len), |b| vec![ManufacturerSpecific(b)])
+        ),
         _ => {
             // skip this field
             debug!("Unknown field type {} in {:?}", typ, i);
@@ -540,22 +662,22 @@ fn le_advertising_data(i: &[u8]) -> IResult<&[u8], Vec<LEAdvertisingData>> {
 }
 
 named!(le_advertising_info<&[u8], LEAdvertisingInfo>,
-    do_parse!(
-       // TODO: support counts other than 1
-       _count: le_u8 >>
-       evt_type: le_u8 >>
-       bdaddr_type: le_u8 >>
-       bdaddr: bd_addr >>
-       data: length_value!(le_u8, fold_many0!(complete!(le_advertising_data), Vec::new(), |mut acc: Vec<_>, x| {
-           acc.extend(x);
-           acc
-       })) >>
-       (
-         LEAdvertisingInfo {
-           evt_type, bdaddr_type, bdaddr, data: data
-         }
-       )
-    ));
+do_parse!(
+   // TODO: support counts other than 1
+   _count: le_u8 >>
+   evt_type: le_u8 >>
+   bdaddr_type: le_u8 >>
+   bdaddr: bd_addr >>
+   data: length_value!(le_u8, fold_many0!(complete!(le_advertising_data), Vec::new(), |mut acc: Vec<_>, x| {
+       acc.extend(x);
+       acc
+   })) >>
+   (
+     LEAdvertisingInfo {
+       evt_type, bdaddr_type, bdaddr, data: data
+     }
+   )
+));
 
 named!(bd_addr<&[u8], BDAddr>,
     do_parse!(
@@ -566,22 +688,22 @@ named!(bd_addr<&[u8], BDAddr>,
 ));
 
 named!(le_conn_complete<&[u8], LEConnInfo>,
-    do_parse!(
-       _skip: le_u8 >>
-       handle: le_u16 >>
-       role: le_u8 >>
-       bdaddr_type: le_u8 >>
-       bdaddr: bd_addr >>
-       interval: le_u16 >>
-       latency: le_u16 >>
-       supervision_timeout: le_u16 >>
-       master_clock_accuracy: le_u8 >>
-       (
-           LEConnInfo {
-              handle, role, bdaddr_type, bdaddr, interval, latency,
-              supervision_timeout, master_clock_accuracy
-           }
-       )));
+do_parse!(
+   _skip: le_u8 >>
+   handle: le_u16 >>
+   role: le_u8 >>
+   bdaddr_type: le_u8 >>
+   bdaddr: bd_addr >>
+   interval: le_u16 >>
+   latency: le_u16 >>
+   supervision_timeout: le_u16 >>
+   master_clock_accuracy: le_u8 >>
+   (
+       LEConnInfo {
+          handle, role, bdaddr_type, bdaddr, interval, latency,
+          supervision_timeout, master_clock_accuracy
+       }
+   )));
 
 named!(le_read_remote_used_features_complete<&[u8], Message>,
     do_parse!(
@@ -614,18 +736,17 @@ named!(le_conn_update_complete<&[u8], Message>,
 fn le_meta_event(i: &[u8]) -> IResult<&[u8], Message> {
     let (i, le_type) = try_parse!(i, map_opt!(le_u8, |b| LEEventType::from_u8(b)));
     let (i, result) = match le_type {
-        LEEventType::LEAdvertisingReport => {
-            try_parse!(i, map!(le_advertising_info, |x| Message::LEAdvertisingReport(x)))
-        }
+        LEEventType::LEAdvertisingReport => try_parse!(
+            i,
+            map!(le_advertising_info, |x| Message::LEAdvertisingReport(x))
+        ),
         LEEventType::LEConnComplete => {
             try_parse!(i, map!(le_conn_complete, |x| Message::LEConnComplete(x)))
         }
         LEEventType::LEReadRemoteUsedFeaturesComplete => {
             try_parse!(i, le_read_remote_used_features_complete)
         }
-        LEEventType::LEConnUpdateComplete => {
-            try_parse!(i, le_conn_update_complete)
-        }
+        LEEventType::LEConnUpdateComplete => try_parse!(i, le_conn_update_complete),
     };
     Ok((i, result))
 }
@@ -642,29 +763,30 @@ fn cmd_complete(i: &[u8]) -> IResult<&[u8], Message> {
             let (i, le) = try_parse!(i, le_u8);
             let (_, simul) = try_parse!(i, le_u8);
             ReadLEHostSupported { le, simul }
-        },
+        }
         CommandType::ReadBDAddr => {
             let (i, address_type) = try_parse!(i, map_opt!(le_u8, |b| AddressType::from_u8(b)));
             let (_, address) = try_parse!(i, bd_addr);
 
-            ReadBDAddr { address_type, address }
-        },
+            ReadBDAddr {
+                address_type,
+                address,
+            }
+        }
         CommandType::LESetScanParameters => LESetScanParameters,
-        CommandType::LESetScanEnabled => {
-            LESetScanEnabled { enabled: status == 1 }
+        CommandType::LESetScanEnabled => LESetScanEnabled {
+            enabled: status == 1,
         },
         CommandType::ReadRSSI => {
             let (i, handle) = try_parse!(i, le_u16);
             let (_, rssi) = try_parse!(i, le_u8);
             ReadRSSI { handle, rssi }
-        },
-        x => {
-            Other {
-                command: x,
-                status,
-                data: i.clone().to_owned()
-            }
         }
+        x => Other {
+            command: x,
+            status,
+            data: i.clone().to_owned(),
+        },
     };
 
     Ok((&i, Message::HCICommandComplete(result)))
@@ -694,10 +816,8 @@ fn hci_event_pkt(i: &[u8]) -> IResult<&[u8], Message> {
             let (data, status) = try_parse!(data, map_opt!(le_u8, |b| HCIStatus::from_u8(b)));
             let (data, _) = try_parse!(data, le_u8);
             let (_, command) = try_parse!(data, map_opt!(le_u16, |b| CommandType::from_u16(b)));
-            Message::CommandStatus {
-                command, status,
-            }
-        },
+            Message::CommandStatus { command, status }
+        }
         DisconnComplete => try_parse!(data, disconnect_complete).1,
         _ => {
             warn!("Unhandled HCIEventPkt subtype {:?}", sub_type);
@@ -718,13 +838,11 @@ fn hci_command_pkt(i: &[u8]) -> IResult<&[u8], Message> {
                 enable: enable == 1,
                 filter_duplicates: filter_duplicates == 1,
             }
-        },
-        other => {
-            Message::HCICommand {
-                command: other,
-                data: data.to_owned(),
-            }
         }
+        other => Message::HCICommand {
+            command: other,
+            data: data.to_owned(),
+        },
     };
     Ok((i, result))
 }
@@ -741,19 +859,23 @@ fn hci_acldata_pkt(i: &[u8]) -> IResult<&[u8], Message> {
             let (i, plen) = try_parse!(i, le_u16);
             let (i, cid) = try_parse!(i, le_u16);
             let (i, data) = try_parse!(i, take!(dlen - 4));
-            (i, Message::ACLDataPacket(ACLData {
-                handle,
-                cid,
-                data: data.to_owned(),
-                len: plen,
-            }))
+            (
+                i,
+                Message::ACLDataPacket(ACLData {
+                    handle,
+                    cid,
+                    data: data.to_owned(),
+                    len: plen,
+                }),
+            )
         }
-        ACL_CONT => {
-            (&[][..], Message::ACLDataContinuation {
+        ACL_CONT => (
+            &[][..],
+            Message::ACLDataContinuation {
                 handle,
                 data: i.clone().to_owned(),
-            })
-        },
+            },
+        ),
         x => {
             warn!("unknown flag type: {}", x);
             return Err(Err::Error(error_position!(i, ErrorKind::Custom(11))));

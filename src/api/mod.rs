@@ -1,10 +1,10 @@
 use std::fmt;
-use std::fmt::{Display, Formatter, Debug};
+use std::fmt::{Debug, Display, Formatter};
 
-use ::Result;
-use std::collections::BTreeSet;
-use api::UUID::B16;
 use api::UUID::B128;
+use api::UUID::B16;
+use std::collections::BTreeSet;
+use Result;
 
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub enum AddressType {
@@ -13,7 +13,9 @@ pub enum AddressType {
 }
 
 impl Default for AddressType {
-    fn default() -> Self { AddressType::Public }
+    fn default() -> Self {
+        AddressType::Public
+    }
 }
 
 impl AddressType {
@@ -28,7 +30,7 @@ impl AddressType {
     pub fn num(&self) -> u8 {
         match *self {
             AddressType::Public => 0,
-            AddressType::Random => 1
+            AddressType::Random => 1,
         }
     }
 }
@@ -37,20 +39,23 @@ impl AddressType {
 #[derive(Copy, Clone, Hash, Eq, PartialEq, Default)]
 #[repr(C)]
 pub struct BDAddr {
-    pub address: [ u8 ; 6usize ]
+    pub address: [u8; 6usize],
 }
 
 impl Display for BDAddr {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         let a = self.address;
-        write!(f, "{:02X}:{:02X}:{:02X}:{:02X}:{:02X}:{:02X}",
-               a[5], a[4], a[3], a[2], a[1], a[0])
+        write!(
+            f,
+            "{:02X}:{:02X}:{:02X}:{:02X}:{:02X}:{:02X}",
+            a[5], a[4], a[3], a[2], a[1], a[0]
+        )
     }
 }
 
 impl Debug for BDAddr {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-        (self as &Display).fmt(f)
+        (self as &dyn Display).fmt(f)
     }
 }
 
@@ -63,11 +68,11 @@ pub struct ValueNotification {
     pub value: Vec<u8>,
 }
 
-pub type Callback<T> = Box<Fn(Result<T>) + Send>;
+pub type Callback<T> = Box<dyn Fn(Result<T>) + Send>;
 pub type CommandCallback = Callback<()>;
 pub type RequestCallback = Callback<Vec<u8>>;
 
-pub type NotificationHandler = Box<Fn(ValueNotification) + Send>;
+pub type NotificationHandler = Box<dyn Fn(ValueNotification) + Send>;
 
 /// A Bluetooth UUID. These can either be 2 bytes or 16 bytes long. UUIDs uniquely identify various
 /// objects in the Bluetooth universe.
@@ -102,7 +107,7 @@ impl Display for UUID {
 
 impl Debug for UUID {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-        (self as &Display).fmt(f)
+        (self as &dyn Display).fmt(f)
     }
 }
 
@@ -146,10 +151,12 @@ pub struct Characteristic {
 
 impl Display for Characteristic {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-        write!(f, "handle: 0x{:04X}, char properties: 0x{:02X}, \
+        write!(
+            f,
+            "handle: 0x{:04X}, char properties: 0x{:02X}, \
                    char value handle: 0x{:04X}, end handle: 0x{:04X}, uuid: {:?}",
-               self.start_handle, self.properties,
-               self.value_handle, self.end_handle, self.uuid)
+            self.start_handle, self.properties, self.value_handle, self.end_handle, self.uuid
+        )
     }
 }
 
@@ -204,12 +211,21 @@ pub trait Peripheral: Send + Sync + Clone + Debug {
 
     /// Discovers characteristics within the specified range of handles. This is a synchronous
     /// operation.
-    fn discover_characteristics_in_range(&self, start: u16, end: u16) -> Result<Vec<Characteristic>>;
+    fn discover_characteristics_in_range(
+        &self,
+        start: u16,
+        end: u16,
+    ) -> Result<Vec<Characteristic>>;
 
     /// Sends a command (`write-without-response`) to the characteristic. Takes an optional callback
     /// that will be notified in case of error or when the command has been successfully acked by the
     /// device.
-    fn command_async(&self, characteristic: &Characteristic, data: &[u8], handler: Option<CommandCallback>);
+    fn command_async(
+        &self,
+        characteristic: &Characteristic,
+        data: &[u8],
+        handler: Option<CommandCallback>,
+    );
 
     /// Sends a command (write without response) to the characteristic. Synchronously returns a
     /// `Result` with an error set if the command was not accepted by the device.
@@ -217,13 +233,16 @@ pub trait Peripheral: Send + Sync + Clone + Debug {
 
     /// Sends a request (write) to the device. Takes an optional callback with either an error if
     /// the request was not accepted or the response from the device.
-    fn request_async(&self, characteristic: &Characteristic,
-                     data: &[u8], handler: Option<RequestCallback>);
+    fn request_async(
+        &self,
+        characteristic: &Characteristic,
+        data: &[u8],
+        handler: Option<RequestCallback>,
+    );
 
     /// Sends a request (write) to the device. Synchronously returns either an error if the request
     /// was not accepted or the response from the device.
-    fn request(&self, characteristic: &Characteristic,
-               data: &[u8]) -> Result<Vec<u8>>;
+    fn request(&self, characteristic: &Characteristic, data: &[u8]) -> Result<Vec<u8>>;
 
     /// Sends a request (read) to the device. Takes an optional callback with either an error if
     /// the request was not accepted or the response from the device.
@@ -237,15 +256,18 @@ pub trait Peripheral: Send + Sync + Clone + Debug {
     /// characteristic and for the specified declaration UUID. See
     /// [here](https://www.bluetooth.com/specifications/gatt/declarations) for valid UUIDs.
     /// Takes an optional callback that will be called with an error or the device response.
-    fn read_by_type_async(&self, characteristic: &Characteristic,
-                          uuid: UUID, handler: Option<RequestCallback>);
+    fn read_by_type_async(
+        &self,
+        characteristic: &Characteristic,
+        uuid: UUID,
+        handler: Option<RequestCallback>,
+    );
 
     /// Sends a read-by-type request to device for the range of handles covered by the
     /// characteristic and for the specified declaration UUID. See
     /// [here](https://www.bluetooth.com/specifications/gatt/declarations) for valid UUIDs.
     /// Synchronously returns either an error or the device response.
-    fn read_by_type(&self, characteristic: &Characteristic,
-                    uuid: UUID) -> Result<Vec<u8>>;
+    fn read_by_type(&self, characteristic: &Characteristic, uuid: UUID) -> Result<Vec<u8>>;
 
     /// Enables either notify or indicate (depending on support) for the specified characteristic.
     /// This is a synchronous call.
@@ -270,10 +292,10 @@ pub enum CentralEvent {
     DeviceDisconnected(BDAddr),
 }
 
-pub type EventHandler = Box<Fn(CentralEvent) + Send>;
+pub type EventHandler = Box<dyn Fn(CentralEvent) + Send>;
 
 /// Central is the "client" of BLE. It's able to scan for and establish connections to peripherals.
-pub trait Central<P : Peripheral>: Send + Sync + Clone {
+pub trait Central<P: Peripheral>: Send + Sync + Clone {
     /// Registers a function that will receive notifications when events occur for this Central
     /// module. See [`Event`](enum.CentralEvent.html) for the full set of events. Note that the
     /// handler will be called in a common thread, so it should not block.
