@@ -39,7 +39,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 [[package]]
 name = "bluenrg"
 version = "0.1.0"
-source = "git+https://github.com/Daniel-Berton-STI-ltd/bluenrg?rev=bc019d47dd487b3efcb0560d88d6f92201ff1716#bc019d47dd487b3efcb0560d88d6f92201ff1716"
+source = "git+https://github.com/connectedcars/bluenrg.git?rev=bc019d47dd487b3efcb0560d88d6f92201ff1716#bc019d47dd487b3efcb0560d88d6f92201ff1716"
 dependencies = [
  "bitflags 1.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "bluetooth-hci 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -335,7 +335,7 @@ version = "0.3.0"
 dependencies = [
  "backtrace 0.3.53 (registry+https://github.com/rust-lang/crates.io-index)",
  "bitflags 1.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
- "bluenrg 0.1.0 (git+https://github.com/Daniel-Berton-STI-ltd/bluenrg?rev=bc019d47dd487b3efcb0560d88d6f92201ff1716)",
+ "bluenrg 0.1.0 (git+https://github.com/connectedcars/bluenrg.git?rev=bc019d47dd487b3efcb0560d88d6f92201ff1716)",
  "bytes 0.5.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "enum_primitive 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "failure 0.1.8 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -396,7 +396,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 "checksum autocfg 1.0.1 (registry+https://github.com/rust-lang/crates.io-index)" = "cdb031dd78e28731d87d56cc8ffef4a8f36ca26c38fe2de700543e627f8a464a"
 "checksum backtrace 0.3.53 (registry+https://github.com/rust-lang/crates.io-index)" = "707b586e0e2f247cbde68cdd2c3ce69ea7b7be43e1c5b426e37c9319c4b9838e"
 "checksum bitflags 1.2.1 (registry+https://github.com/rust-lang/crates.io-index)" = "cf1de2fe8c75bc145a2f577add951f8134889b4795d47466a54a5c846d691693"
-"checksum bluenrg 0.1.0 (git+https://github.com/Daniel-Berton-STI-ltd/bluenrg?rev=bc019d47dd487b3efcb0560d88d6f92201ff1716)" = "<none>"
+"checksum bluenrg 0.1.0 (git+https://github.com/connectedcars/bluenrg.git?rev=bc019d47dd487b3efcb0560d88d6f92201ff1716)" = "<none>"
 "checksum bluetooth-hci 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)" = "ba8c2b20e8648a369c0c984201cdc1673917420f1f5e28cce90635048eeb1032"
 "checksum byteorder 1.2.7 (registry+https://github.com/rust-lang/crates.io-index)" = "94f88df23a25417badc922ab0f5716cc1330e87f71ddd9203b3a3ccd9cedf75d"
 "checksum bytes 0.5.6 (registry+https://github.com/rust-lang/crates.io-index)" = "0e4cec68f03f32e44924783795810fa50a7035d8c8ebe78580ad7e6c703fba38"

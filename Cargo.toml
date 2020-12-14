@@ -16,7 +16,7 @@ keywords = ["bluetooth", "BLE", "IOT", "bluez","bluenrg"]
 categories = ["network-programming", "hardware-support"]
 
 [dependencies]
-bluenrg = { git = "https://github.com/Daniel-Berton-STI-ltd/bluenrg" , rev = "bc019d47dd487b3efcb0560d88d6f92201ff1716" }
+bluenrg = { git = "https://github.com/connectedcars/bluenrg.git" , rev = "bc019d47dd487b3efcb0560d88d6f92201ff1716" }
 backtrace = "0.3.50"
 bitflags = "1.2.1"
 bytes = "0.5.6"
